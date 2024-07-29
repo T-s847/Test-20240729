@@ -11,7 +11,7 @@ If you don't have your own data, options for places to find data are listed on h
 
 You might start by setting up an R Project, importing your data, previewing the data, etc. 
 
-This dataset comes from the xxx
+This dataset comes from the xxx. 
 
 ```{r}
 
