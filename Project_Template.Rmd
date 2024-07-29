@@ -11,7 +11,7 @@ If you don't have your own data, options for places to find data are listed on h
 
 You might start by setting up an R Project, importing your data, previewing the data, etc. 
 
-working on olympic data!
+This dataset comes from the xxx
 
 ```{r}
 
@@ -61,6 +61,8 @@ Don't forget to describe what analysis you performed and why. Provide some simpl
 # Versions
 
 Include some information about the version of R and the packages you are using by running sessionInfo().
+1
+
 
 ```{r}
 sessionInfo()
