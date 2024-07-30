@@ -1,0 +1,140 @@
+# Code-a-thon Project Template
+
+This project is intended to help you apply your skills in R in a way that would be conducive for collaborating or creating reproducible analyses.
+
+
+## Data Used
+
+Identify a dataset to analyze. Remember that if you share the data you must **not violate any privacy restrictions**
+
+If you don't have your own data, options for places to find data are listed on https://daseh.org.
+
+You might start by setting up an R Project, importing your data, previewing the data, etc. 
+
+This dataset was collect from NCBI.
+
+```{r}
+install.packages("tidyverse")
+install.packages("ggplot2")
+
+library(tidyverse)
+library(ggplot2)
+library(edgeR)
+library(RUVSeq)
+library(RColorBrewer)
+library(openxlsx)
+```
+
+**describe** what your data looks like and **where** you got it. Identify what the variables and samples are, or point to a data dictionary. Describe how the data was originally created. 
+
+
+# Data Cleaning/Wrangling
+
+Perform any data subsetting, cleaning, or manipulation methods that were described in this course on your data. Examples are: renaming the columns, recoding values, reshaping the data, filtering the data etc. 
+
+You might also research other methods to include here, especially if your data is very unique.
+
+```{r}
+transporter <- read.delim("D:/OneDrive - UW/Desktop/placenta.txt", row.names="Symbol")
+view(transporter)
+
+transporter_filter <- dplyr::filter(placenta_transporter, T1_1 >8 & T1_2 >8 & T1_3 >8 & T1_4 >8 & T3_1 >8 & T3_2 >8 & T3_3 >8 & T3_4 >8)
+
+T1 <- dplyr::select(transporter_filter, T1_1, T1_2, T1_3, T1_4)
+T3 <- dplyr::select(transporter_filter, T3_1, T3_2, T3_3, T3_4)
+
+
+
+```
+
+
+# Data Visualization
+
+Create some visualizations of your data using the esquisse app or the ggplot2 package.
+
+```{r}
+# Separate the data into T1 and T3
+# test for differential expression in each gene using QL F-test
+sample_name <- c("T1_1", "T1_2", "T1_3", "T1_4", "T3_1", "T3_2", "T3_3", "T3_4")
+
+group <- c("first", "first", "first", "first", "third", "third", "third", "third")
+
+group.df <- data.frame(sample_name, group)
+
+# design matrix
+design <- model.matrix(~0+group) # either 0 or 1
+colnames(design) <- levels(group) 
+colnames(design) <- c("first", "third")
+design
+```
+
+# dispersion estimation
+```{r}
+y <- estimateDisp(y, design, robust = TRUE)
+plotBCV(y)
+```
+```{r}
+fit <- glmQLFit(y, design, robuts = TRUE)
+head(fit$coefficients)
+```
+```{r}
+plotQLDisp(fit) # better corrected dispersion
+summary(fit$df.prior)
+```
+
+
+```{r}
+library(edgeR)
+
+y <- DGEList(transporter_filter, group = group, 
+        genes = row.names(transporter_filter))
+head(y)
+
+# pch = c(0, 1) # only two groups
+
+color <- c("darkgreen", "darkgreen", "darkgreen", "darkgreen", "yellow", "yellow", "yellow", "yellow")
+plotMDS(y, pch = 19, col = color[group]) # each group get a different symbol
+# after we add the color, the datapoint is not showing up in the plot - need to figure this out 
+
+plotMD(y, column = 1)
+
+# top PC is the one that maximize the differences !!!
+```
+
+
+```{r}
+# differential analysis 
+
+con <- makeContrasts(transporter_filter = first - third, levels = design)
+con 
+# to see the dimentions of the dataset
+dim(design)
+dim(transporter_filter)
+
+
+```
+# Data Analysis
+
+Perform a **simple analysis** of your data. This can involve summarizing the data to describe aspects about it (quartiles, means, range etc.) or a simple statistical test. 
+
+Don't forget to describe what analysis you performed and why. Provide some simple **interpretation** about what your analysis might indicate about your data.
+
+
+# Please include additional sections as desired.
+
+```{r}
+
+```
+
+
+# Versions
+
+Include some information about the version of R and the packages you are using by running sessionInfo().
+1
+
+
+```{r}
+sessionInfo()
+```
+
+Render your document to an html or pdf using the "Knit" button.
