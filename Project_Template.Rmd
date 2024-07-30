@@ -11,10 +11,17 @@ If you don't have your own data, options for places to find data are listed on h
 
 You might start by setting up an R Project, importing your data, previewing the data, etc. 
 
-This dataset comes from the xxx. what 
+This dataset was collect from NCBI.
 
 ```{r}
+install.packages("tidyverse")
+install.packages("ggplot2")
 
+library(tidyverse)
+library(ggplot2)
+library(edgeR)
+library(RUVSeq)
+library()
 ```
 
 **describe** what your data looks like and **where** you got it. Identify what the variables and samples are, or point to a data dictionary. Describe how the data was originally created. 
@@ -27,6 +34,10 @@ Perform any data subsetting, cleaning, or manipulation methods that were describ
 You might also research other methods to include here, especially if your data is very unique.
 
 ```{r}
+transporter <- read.delim("D:/OneDrive - UW/Desktop/placenta.txt", row.names="Symbol")
+view(transporter)
+
+transporter_filter <- dplyr::filter(placenta_transporter, T1_1 >8 & T1_2 >8 & T1_3 >8 & T1_4 >8 & T3_1 >8 & T3_2 >8 & T3_3 >8 & T3_4 >8)
 
 ```
 
