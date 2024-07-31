@@ -16,6 +16,10 @@ This dataset was collect from NCBI.
 ```{r}
 install.packages("tidyverse")
 install.packages("ggplot2")
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("edgeR")
 
 library(tidyverse)
 library(ggplot2)
@@ -35,13 +39,13 @@ Perform any data subsetting, cleaning, or manipulation methods that were describ
 You might also research other methods to include here, especially if your data is very unique.
 
 ```{r}
-transporter <- read.delim("D:/OneDrive - UW/Desktop/placenta.txt", row.names="Symbol")
+transporter <- read.delim("C:/Users/SaraS/OneDrive/Documents/AmeliaS Code a thon - 20240731/placenta.txt", row.names="Symbol")
 view(transporter)
 
-transporter_filter <- dplyr::filter(placenta_transporter, T1_1 >8 & T1_2 >8 & T1_3 >8 & T1_4 >8 & T3_1 >8 & T3_2 >8 & T3_3 >8 & T3_4 >8)
+transporter_filter <- dplyr::filter(transporter, T1_1 >8 & T1_2 >8 & T1_3 >8 & T1_4 >8 & T3_1 >8 & T3_2 >8 & T3_3 >8 & T3_4 >8)
 
-T1 <- dplyr::select(transporter_filter, T1_1, T1_2, T1_3, T1_4)
-T3 <- dplyr::select(transporter_filter, T3_1, T3_2, T3_3, T3_4)
+# T1 <- dplyr::select(transporter_filter, T1_1, T1_2, T1_3, T1_4)
+# T3 <- dplyr::select(transporter_filter, T3_1, T3_2, T3_3, T3_4)
 
 
 
@@ -110,7 +114,155 @@ con
 # to see the dimentions of the dataset
 dim(design)
 dim(transporter_filter)
+```
 
+
+```{r}
+res <- glmQLFTest(fit, contrast = con)
+topTags(res)
+```
+
+
+```{r}
+# to control for the FDR 
+is.de <- decideTestsDGE(res)
+summary(is.de)
+
+# plot it 
+
+plotMD(res, status = is.de, values = c(1, -1), col=c("red", "blue"), 
+       legend = "topright")
+```
+
+
+```{r}
+# to control the fold change above 1.5 to be significant change
+threshold <- glmTreat(fit, contrast = con, lfc = log2(1.5))
+topTags(threshold)
+
+# control for FDR
+is.de <- decideTestsDGE(threshold)
+summary(is.de)
+
+# plot it 
+
+plotMD(threshold, status = is.de, values = c(1, -1), col=c("red", "blue"), 
+       legend = "topright")
+```
+
+```{r}
+# maeka volcano plot
+library(RColorBrewer)
+install.packages("ggrepel")
+library(ggrepel)
+view(threshold)
+threshold_table <- threshold$table
+ggplot(data = threshold_table, aes(x = logFC, y = -log10(PValue)))+
+  geom_point()
+```
+
+
+```{r}
+# Add threshold lines
+
+library(ggplot2)
+
+#ggplot(threshold_table) +
+ #aes(x = logFC, y = PValue) +
+ #geom_point(colour = "#112446") +
+ #theme_minimal()
+
+
+# ggplot(data = threshold_table, aes(x = logFC, y = -log10(PValue))) +
+#  geom_vline(xintercept = c(-1.5, 1.5), col = "darkgreen", linetype = 'dashed') +
+ # geom_hline(yintercept = -log10(0.05), col = "darkgreen", linetype = 'dashed') + 
+ # geom_point() 
+
+
+
+threshold_table$diffexpressed <- "NO"
+
+threshold_table$diffexpressed[threshold_table$logFC > 1.5 & threshold_table$PValue < 0.05] <- "UP"
+threshold_table$diffexpressed[threshold_table$logFC < -1.5 & threshold_table$PValue < 0.05] <- "DOWN"
+p <- ggplot(data=threshold_table, aes(x=logFC, y=-log10(PValue), col=diffexpressed)) + geom_point() + theme_minimal()
+
+p2 <- p + geom_vline(xintercept=c(-1.5, 1.5), col="red") +
+        geom_hline(yintercept=-log10(0.05), col="red")
+
+mycolors <- c("blue", "red", "black")
+names(mycolors) <- c("DOWN", "UP", "NO")
+p3 <- p2 + scale_colour_manual(values = mycolors)
+p3
+```
+
+
+```{r}
+#label the points 
+threshold_table2 <- threshold$genes
+threshold_table$delabel <- NA
+threshold_table$genes <- threshold_table2
+threshold_table$delabel[threshold_table$diffexpressed != "NO"] <- threshold_table$genes$genes[threshold_table$diffexpressed != "NO"]
+
+
+ggplot(data=threshold_table, aes(x=logFC, y=-log10(PValue), col=diffexpressed, label=delabel)) + 
+    geom_point() + 
+    theme_minimal() +
+    geom_text()
+
+library(ggrepel)
+ggplot(data=threshold_table, aes(x=logFC, y=-log10(PValue), col=diffexpressed, label=delabel)) +
+        geom_point() + 
+        theme_minimal() +
+        geom_text_repel() +
+        scale_color_manual(values=c("blue", "black", "red")) +
+        geom_vline(xintercept=c(-0.6, 0.6), col="red") +
+        geom_hline(yintercept=-log10(0.05), col="red")
+
+
+```
+
+
+```{r}
+# heatmap clustering
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("ComplexHeatmap")
+
+library(ComplexHeatmap)
+
+logCPM <- cpm(y, prior.count = 2, log = TRUE)
+rownames(logCPM) <- y$genes$genes
+colnames(logCPM) <- paste(y$samples$group, 1:4, sep = "-")
+
+o <- order(threshold$table$PValue)
+logCPM <- logCPM[o[1:30],]
+
+#  we scale each row (each gene) to have mean zero and standard deviation one:
+logCPM <- t(scale(t(logCPM)))
+
+library(gplots)
+col.pan <- colorpanel(100, "blue", "white", "red")
+heatmap.2(logCPM, col = col.pan)
+
+
+Heatmap(logCPM, col = col.pan, 
+        name = "HeatMap of the top 30 most DE genes between the First and Third Trimester",
+        row_title = "genes", 
+        column_title = "gestational stages", 
+        column_title_side = "bottom", 
+        heatmap_width = unit(100, "mm"), 
+        heatmap_height = unit(200, "mm"))
+
+# Heatmap function in ComplexHeatmap
+# Heatmap(matrix, col, name, na_col = "grey", color_space = "LAB", rect_gp = gpar(col = NA), border = NA, border_gp = gpar(col = "black"), cell_fun = NULL, layer_fun = NULL, jitter = FALSE, row_title = character(0), row_title_side = c("left", "right"), row_title_gp = gpar(fontsize = 13.2), row_title_rot = switch(row_title_side[1], left = 90, right = 270), column_title = character(0), column_title_side = c("top", "bottom"), column_title_gp = gpar(fontsize = 13.2), column_title_rot = 0, cluster_rows = TRUE, cluster_row_slices = TRUE, clustering_distance_rows = "euclidean", clustering_method_rows = "complete", row_dend_side = c("left", "right"), row_dend_width = unit(10, "mm"), show_row_dend = TRUE, row_dend_reorder = is.logical(cluster_rows) || is.function(cluster_rows), row_dend_gp = gpar(), cluster_columns = TRUE, cluster_column_slices = TRUE, clustering_distance_columns = "euclidean", clustering_method_columns = "complete", column_dend_side = c("top", "bottom"), column_dend_height = unit(10, "mm"), show_column_dend = TRUE, column_dend_gp = gpar(), column_dend_reorder = is.logical(cluster_columns) || is.function(cluster_columns), row_order = NULL, column_order = NULL, row_labels = rownames(matrix), row_names_side = c("right", "left"), show_row_names = TRUE, row_names_max_width = unit(6, "cm"), row_names_gp = gpar(fontsize = 12), row_names_rot = 0, row_names_centered = FALSE, column_labels = colnames(matrix), column_names_side = c("bottom", "top"), show_column_names = TRUE, column_names_max_height = unit(6, "cm"), column_names_gp = gpar(fontsize = 12), column_names_rot = 90, column_names_centered = FALSE, top_annotation = NULL, bottom_annotation = NULL, left_annotation = NULL, right_annotation = NULL, km = 1, split = NULL, row_km = km, row_km_repeats = 1, row_split = split, column_km = 1, column_km_repeats = 1, column_split = NULL, gap = unit(1, "mm"), row_gap = unit(1, "mm"), column_gap = unit(1, "mm"), show_parent_dend_line = ht_opt$show_parent_dend_line, heatmap_width = unit(1, "npc"), width = NULL, heatmap_height = unit(1, "npc"), height = NULL, show_heatmap_legend = TRUE, heatmap_legend_param = list(title = name), use_raster = NULL, raster_device = c("png", "jpeg", "tiff", "CairoPNG", "CairoJPEG", "CairoTIFF", "agg_png"), raster_quality = 1, raster_device_param = list(), raster_resize_mat = FALSE, raster_by_magick = requireNamespace("magick", quietly = TRUE), raster_magick_filter = NULL, post_fun = NULL))
+```
+
+
+```{r}
+# KEGG pathway analysis 
+keg <- kegga(threshold, species = "Hs")
+topKEGG(keg, n = 15, truncate = 34)
 
 ```
 # Data Analysis
